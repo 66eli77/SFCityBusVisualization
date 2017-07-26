@@ -1,12 +1,24 @@
 import React, { Component } from 'react';
 import './App.css';
 import SFBusMap from './SFBusMap';
+import { xml } from 'd3';
 
 class App extends Component {
   constructor(props) {
     super(props);
-    this.state = {route: ''};
+    this.state = {
+      route: '',
+      routes: [],
+    };
+    this.routeListUrl = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a=sf-muni',
     this.handleChange = this.handleChange.bind(this);
+  }
+
+  componentWillMount() {
+    xml(this.routeListUrl, xml => {
+        this.setState({routes: xml.documentElement.getElementsByTagName('route')});
+      }
+    );
   }
 
   handleChange(event) {
@@ -22,10 +34,11 @@ class App extends Component {
             <label className='select-lable' htmlFor='Route-select'>Choose your route:</label>
             <select className='route-select' value={this.state.route} onChange={this.handleChange}>
               <option value=''>All</option>
-              <option value='N'>N</option>
-              <option value='6'>6</option>
-              <option value='22'>22</option>
-              <option value='8'>8</option>
+              {
+                Array.prototype.map.call(this.state.routes, function(r) {
+                  return <option key={r.getAttribute('tag')} value={r.getAttribute('tag')}>{r.getAttribute('title')}</option>;
+                })
+              }
             </select>
           </div>
         </div>

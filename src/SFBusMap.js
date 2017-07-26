@@ -11,13 +11,14 @@ class SFBusMap extends Component {
     super(props);
     this.state = {
       svg: null,
-      // bus location data url
-      url: 'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a=sf-muni&t=',
       // last bus location fetch time
       lastTime: null,
       // route tag
       routeTag: '',
     };
+    // bus location data url
+    this.vehicleLocationsUrl = 'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a=sf-muni&t=',
+    this.onRef = this.onRef.bind(this);
   }
 
   renderMap() {
@@ -32,14 +33,14 @@ class SFBusMap extends Component {
     // update the projection to use computed scale and translate....
     projection.scale(s).translate(t);
 
-    xml(this.state.url + '0' + this.state.routeTag, xml => {
+    xml(this.vehicleLocationsUrl + '0' + this.state.routeTag, xml => {
         // draw the buses
         const fleet = this.state.svg.selectAll('.bus')
           .data(xml.documentElement.getElementsByTagName('vehicle'), d => d.getAttribute('id'))
           .enter().append('circle')
           .attr('cx', d => projection([d.getAttribute('lon'), d.getAttribute('lat')])[0])
           .attr('cy', d => projection([d.getAttribute('lon'), d.getAttribute('lat')])[1])
-          .attr('r', 3)
+          .attr('r', 4)
           .attr('id', d => d.getAttribute('id'))
           .attr('class', d => 'bus ' + 'tag-' + d.getAttribute('routeTag'))
           .style('fill', 'red');
@@ -70,12 +71,12 @@ class SFBusMap extends Component {
     }
   }
 
-  onRef = (ref) => {
+  onRef(ref) {
     this.setState({ svg: select(ref) }, () => this.renderMap(this.props.data))
   }
 
   updateBusLocation(fleet, projection) {
-    xml(this.state.url + this.state.lastTime + this.state.routeTag, xml => {
+    xml(this.vehicleLocationsUrl + this.state.lastTime + this.state.routeTag, xml => {
       fleet.data(xml.documentElement.getElementsByTagName('vehicle'), d => d.getAttribute('id'))
         .transition().duration(3000).ease(easeSin)
         .attr('cx', d => projection([d.getAttribute('lon'), d.getAttribute('lat')])[0])
