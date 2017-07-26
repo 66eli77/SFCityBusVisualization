@@ -3,13 +3,14 @@ import neighborhoods from './sfmaps/neighborhoods.json';
 import streets from './sfmaps/streets.json';
 import freeways from './sfmaps/freeways.json';
 import arteries from './sfmaps/arteries.json';
-import { geoAlbers, geoPath, select, transition, xml } from 'd3';
+import { geoAlbers, geoPath, select, easeSin, xml } from 'd3';
 
-class SFMap extends Component {
+class SFBusMap extends Component {
 
   constructor(props){
     super(props);
     this.state = {
+      svg: null,
       // bus location data url
       url: 'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a=sf-muni&t=',
       // last bus location fetch time
@@ -19,7 +20,7 @@ class SFMap extends Component {
     };
   }
 
-  componentDidMount() {
+  renderMap() {
     // create a unit projection
     const projection = geoAlbers().scale(1).translate([0,0]);
     // create a path generator.
@@ -33,7 +34,7 @@ class SFMap extends Component {
 
     xml(this.state.url + '0' + this.state.routeTag, xml => {
         // draw the buses
-        const fleet = select(this.node).selectAll('.bus')
+        const fleet = this.state.svg.selectAll('.bus')
           .data(xml.documentElement.getElementsByTagName('vehicle'), d => d.getAttribute('id'))
           .enter().append('circle')
           .attr('cx', d => projection([d.getAttribute('lon'), d.getAttribute('lat')])[0])
@@ -47,7 +48,7 @@ class SFMap extends Component {
         this.setState({lastTime: xml.documentElement.getElementsByTagName('lastTime')[0].getAttribute('time')});
 
         // update the bus locations every 15 secs
-        setInterval(() => this.updateBusLocation(fleet, projection), 5000);
+        setInterval(() => this.updateBusLocation(fleet, projection), 15000);
       }
     );
 
@@ -55,25 +56,28 @@ class SFMap extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    // console.log('nnnNNNN::: ', nextProps.routeTag, ' --- ', this.props.routeTag);
     if(nextProps.routeTag !== this.props.routeTag) {
       if(nextProps.routeTag){
-        select(this.node).selectAll('.tag-' + nextProps.routeTag)
-          .style("opacity", '1');
-        select(this.node).selectAll('.bus').filter(d => d.getAttribute('routeTag') !== nextProps.routeTag)
-          .style("opacity", '0');
+        this.state.svg.selectAll('.tag-' + nextProps.routeTag)
+          .style('opacity', '1');
+        this.state.svg.selectAll('.bus').filter(d => d.getAttribute('routeTag') !== nextProps.routeTag)
+          .style('opacity', '0');
         this.setState({routeTag: '&r=' + nextProps.routeTag});
       }else{
-        select(this.node).selectAll('.bus').style("opacity", '1');
+        this.state.svg.selectAll('.bus').style('opacity', '1');
         this.setState({routeTag: ''});
       }
     }
   }
 
+  onRef = (ref) => {
+    this.setState({ svg: select(ref) }, () => this.renderMap(this.props.data))
+  }
+
   updateBusLocation(fleet, projection) {
     xml(this.state.url + this.state.lastTime + this.state.routeTag, xml => {
       fleet.data(xml.documentElement.getElementsByTagName('vehicle'), d => d.getAttribute('id'))
-        // .transition().duration(3000).ease(transition.easeSin)
+        .transition().duration(3000).ease(easeSin)
         .attr('cx', d => projection([d.getAttribute('lon'), d.getAttribute('lat')])[0])
         .attr('cy', d => projection([d.getAttribute('lon'), d.getAttribute('lat')])[1]);
 
@@ -84,7 +88,7 @@ class SFMap extends Component {
 
   drawMap(path) {
     // draw the neighborhoods
-    select(this.node)
+    this.state.svg
       .selectAll('path').data(neighborhoods.features).enter().append('path')
       .attr('d', path)
       .style('fill', '#fcdfdb')
@@ -92,7 +96,7 @@ class SFMap extends Component {
       .style('stroke', 'orange');
      
     // draw the streets
-    select(this.node)
+    this.state.svg
       .selectAll('path').data(streets.features).enter().append('path')
       .attr('d', path)
       .style('fill', 'transparent')
@@ -100,7 +104,7 @@ class SFMap extends Component {
       .style('stroke', 'green');
      
     // draw the arteries
-    select(this.node)
+    this.state.svg
       .selectAll('LineString').data(arteries.features).enter().append('path')
       .attr('d', path)
       .style('fill', 'transparent')
@@ -108,7 +112,7 @@ class SFMap extends Component {
       .style('stroke', '#4286f4');
 
     // draw the freeways
-    select(this.node)
+    this.state.svg
       .selectAll('LineString').data(freeways.features).enter().append('path')
       .attr('d', path)
       .style('fill', 'transparent')
@@ -117,7 +121,7 @@ class SFMap extends Component {
   }
 
   render() {
-    return <svg ref={node => this.node = node} width={window.innerWidth} height={window.innerHeight}></svg>;
+    return <svg ref={this.onRef} width={window.innerWidth} height={window.innerHeight}></svg>;
   }
 }
-export default SFMap;
+export default SFBusMap;
